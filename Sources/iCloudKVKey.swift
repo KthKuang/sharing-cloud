@@ -536,12 +536,12 @@ private struct OptionalLookup<Base: Lookup>: Lookup {
 
 private let willEnterForegroundNotificationName: Notification.Name? = {
 #if os(macOS)
-  return NSApplication.willBecomeActiveNotification
+  return Notification.Name("NSApplicationWillBecomeActiveNotification")
 #elseif os(iOS) || os(tvOS) || os(visionOS)
-  return UIApplication.willEnterForegroundNotification
+  return Notification.Name("UIApplicationWillEnterForegroundNotification")
 #elseif os(watchOS)
   if #available(watchOS 7, *) {
-    return WKExtension.applicationWillEnterForegroundNotification
+    return Notification.Name("WKApplicationWillEnterForegroundNotification")
   } else {
     return nil
   }
