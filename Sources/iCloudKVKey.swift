@@ -208,6 +208,7 @@
   }
 
   /// A type defining an iCloud key-value store persistence strategy.
+  // swift-format-ignore: TypeNamesShouldBeCapitalized
   public struct iCloudKVKey<Value: Sendable>: SharedKey {
     private let lookup: any Lookup<Value>
     private let key: String
@@ -355,7 +356,7 @@
         let newValue = lookupValue(default: context.initialValue)
         defer { previousValue.withLock { $0 = newValue } }
 
-        // Check if the value has changed
+        /// Check if the value has changed
         func isEqual<T>(_ lhs: T, _ rhs: T) -> Bool? {
           func open<U: Equatable>(_ lhs: U) -> Bool {
             lhs == rhs as? U
@@ -427,16 +428,17 @@
     }
   }
 
+  // swift-format-ignore: TypeNamesShouldBeCapitalized
   public struct iCloudKVKeyID: Hashable {
     fileprivate let key: String
   }
 
-  // For local state tracking
+  /// For local state tracking
   private enum SharediCloudKVLocals {
     @TaskLocal static var isSetting = false
   }
 
-  // Lookup protocol for NSUbiquitousKeyValueStore
+  /// Lookup protocol for NSUbiquitousKeyValueStore
   private protocol Lookup<Value>: Sendable {
     associatedtype Value: Sendable
     func loadValue(
