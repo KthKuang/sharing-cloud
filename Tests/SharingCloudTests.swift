@@ -182,4 +182,80 @@ struct SharingCloudTests {
     @Shared(.isTestFlagOn) var isTestFlagOn
     #expect(isTestFlagOn == true)
   }
+
+  @Test
+  func optionalCodableRoundtrip() throws {
+    struct Settings: Codable, Equatable, Sendable {
+      var name = "default"
+    }
+
+    @Dependency(\.defaultiCloudKVStore) var store
+    @Shared(.iCloudKV("optionalCodable")) var settings: Settings?
+    $settings.withLock { $0 = Settings(name: "custom") }
+    #expect(settings == Settings(name: "custom"))
+
+    let data = try #require(store.data(forKey: "optionalCodable"))
+    #expect(try JSONDecoder().decode(Settings.self, from: data) == Settings(name: "custom"))
+  }
+
+  @Test
+  func settingOptionalCodableToNilRemovesValue() {
+    struct Settings: Codable, Equatable, Sendable {
+      var name = "default"
+    }
+
+    @Dependency(\.defaultiCloudKVStore) var store
+    @Shared(.iCloudKV("optionalCodableRemoval")) var settings: Settings?
+    $settings.withLock { $0 = Settings(name: "custom") }
+    #expect(store.data(forKey: "optionalCodableRemoval") != nil)
+    $settings.withLock { $0 = nil }
+    #expect(store.object(forKey: "optionalCodableRemoval") == nil)
+  }
+
+  @Test
+  func corruptCodableDataFallsBackToDefault() {
+    struct Settings: Codable, Equatable, Sendable {
+      var name = "default"
+    }
+
+    @Dependency(\.defaultiCloudKVStore) var store
+    store.set(Data("not json".utf8), forKey: "corruptCodable")
+    @Shared(.iCloudKV("corruptCodable")) var settings = Settings()
+    #expect(settings == Settings())
+  }
+
+  @Test
+  func requireThrowsOnCorruptCodableData() async {
+    struct Settings: Codable, Equatable, Sendable {
+      var name = "default"
+    }
+
+    @Dependency(\.defaultiCloudKVStore) var store
+    store.set(Data("not json".utf8), forKey: "requireCorrupt")
+    await #expect(throws: (any Error).self) {
+      let _: SharedReader<Settings> = try await SharedReader(require: .iCloudKV("requireCorrupt"))
+    }
+  }
+
+  @Test
+  func quotaErrorClearsAfterSuccessfulChange() async {
+    let store = NSUbiquitousKeyValueStore.inMemory
+    @Shared(.iCloudKV("quotaClears", store: store)) var count = 0
+
+    withKnownIssue {
+      NotificationCenter.default.post(
+        name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+        object: store,
+        userInfo: [
+          NSUbiquitousKeyValueStoreChangeReasonKey: NSUbiquitousKeyValueStoreQuotaViolationChange
+        ]
+      )
+    }
+    #expect($count.loadError is iCloudKVQuotaError)
+
+    store.set(3, forKey: "quotaClears")
+    await MainActor.run {}
+    #expect(count == 3)
+    #expect($count.loadError == nil)
+  }
 }

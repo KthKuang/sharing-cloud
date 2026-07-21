@@ -578,7 +578,7 @@
 
   extension iCloudKVKey: CustomStringConvertible {
     public var description: String {
-      ".iCloudKV(\(String(reflecting: key)))"
+      ".iCloudKV(\(String(reflecting: key)), store: \(store.wrappedValue))"
     }
   }
 
@@ -592,7 +592,9 @@
   /// iCloud server.
   ///
   /// This error is surfaced through the shared value's `loadError` when the iCloud key-value
-  /// store reports a quota violation.
+  /// store reports a quota violation. Because the quota is a store-wide condition, every shared
+  /// value subscribed to the affected store receives this error, not just the key whose write
+  /// exceeded the quota. The error clears the next time the value changes successfully.
   // swift-format-ignore: TypeNamesShouldBeCapitalized
   public struct iCloudKVQuotaError: Error, Equatable {
     public init() {}
@@ -724,21 +726,42 @@
         else { return nil }
 
         SharediCloudKVLocals.$isSetting.withValue(true) {
-          if let value = defaultValue, let encoded = try? JSONEncoder().encode(value) {
+          if let value = defaultValue, !isNil(value),
+            let encoded = try? JSONEncoder().encode(value)
+          {
             store.set(encoded, forKey: key)
           }
         }
-        return defaultValue
+        return nil
       }
-      return (try? JSONDecoder().decode(Value.self, from: data)) ?? defaultValue
+      return try? JSONDecoder().decode(Value.self, from: data)
     }
 
     func saveValue(_ newValue: Value, to store: NSUbiquitousKeyValueStore, at key: String) {
       SharediCloudKVLocals.$isSetting.withValue(true) {
-        if let encoded = try? JSONEncoder().encode(newValue) {
+        if isNil(newValue) {
+          store.removeObject(forKey: key)
+        } else if let encoded = try? JSONEncoder().encode(newValue) {
           store.set(encoded, forKey: key)
         }
       }
+    }
+
+    /// Overload resolution binds optional codable types to this lookup with `Value` itself
+    /// being `Optional`, so `nil` must be detected at runtime and clear the key — persisting
+    /// JSON `null` would diverge from every other optional strategy, which removes the key.
+    private func isNil(_ value: Value) -> Bool {
+      (value as? any AnyOptional)?.isNil ?? false
+    }
+  }
+
+  private protocol AnyOptional {
+    var isNil: Bool { get }
+  }
+
+  extension Optional: AnyOptional {
+    fileprivate var isNil: Bool {
+      self == nil
     }
   }
 

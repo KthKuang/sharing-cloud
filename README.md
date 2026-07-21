@@ -32,7 +32,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/KeithBird/sharing-cloud", from: "2.0.0")
+    .package(url: "https://github.com/KthKuang/sharing-cloud", from: "2.0.0")
 ]
 ```
 
@@ -159,9 +159,18 @@ struct MyApp: App {
 }
 ```
 
-Or pass an isolated store to a single key with `.iCloudKV("key", store: .inMemory)`.
+You can also pass an isolated store to a single key with `.iCloudKV("key", store:)`. Be aware
+that every access to `.inMemory` creates a brand-new, empty store, so hold on to one instance
+and pass that same instance everywhere the key is declared — two `@Shared` values whose keys
+were created with separate `.inMemory` stores do not share state:
 
-### Other Shared Use Casess
+```swift
+let store = NSUbiquitousKeyValueStore.inMemory
+
+@Shared(.iCloudKV("count", store: store)) var count = 0
+```
+
+### Other Shared Use Cases
 
 More examples can be found in the [swift-sharing documentation](https://swiftpackageindex.com/pointfreeco/swift-sharing/main/documentation/sharing/).
 
