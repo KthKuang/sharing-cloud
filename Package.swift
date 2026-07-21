@@ -33,6 +33,15 @@ let package = Package(
         .product(name: "Sharing", package: "swift-sharing"),
       ],
       path: "Sources"
-    )
+    ),
+    .testTarget(
+      name: "SharingCloudTests",
+      dependencies: [
+        "SharingCloud",
+        .product(name: "Dependencies", package: "swift-dependencies"),
+        .product(name: "Sharing", package: "swift-sharing"),
+      ],
+      path: "Tests"
+    ),
   ]
 )
