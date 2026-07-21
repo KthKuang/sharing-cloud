@@ -12,10 +12,15 @@ SharingCloud provides a simple and elegant way to sync shared data across multip
 - **Simple Property Wrapper Syntax**: Use the familiar `@Shared` syntax with the `.iCloudKV` storage strategy
 - **Comprehensive Type Support**:
   - Primitives: Bool, Int, Double, String
-  - Complex Types: URL, Data, Date
+  - Complex Types: URL, Data, Date, [String]
+  - Any `Codable` type, stored as JSON-encoded data
   - Optional variants of all supported types
   - RawRepresentable types using Int or String as raw values
 - **Automatic Change Detection**: Observes iCloud changes and updates UI automatically
+- **Test & Preview Friendly**: Tests and previews automatically use an in-memory store — no
+  iCloud entitlements required, no data bleeding into the real key-value store
+- **Quota Error Reporting**: Surfaces iCloud quota violations through the shared value's
+  `loadError` as a typed `iCloudKVQuotaError`
 - **Entitlement Checking**: Checks for proper iCloud entitlements and triggers the warning by `reportIssue`
 - **Key Length Validation**: Checks that the key is under the 64-byte limit and triggers the warning by `reportIssue`
 
@@ -27,7 +32,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/KeithBird/sharing-cloud", from: "1.0.0")
+    .package(url: "https://github.com/KeithBird/sharing-cloud", from: "2.0.0")
 ]
 ```
 
@@ -105,6 +110,56 @@ Storing a URL example:
 ```swift
 @Shared(.iCloudKV("lastVisitedURL")) var lastURL: URL?
 ```
+
+Any `Codable` type is stored as JSON-encoded data. Mind the store's quotas — 1 MB per key,
+1 MB total per user, and at most 1,024 keys — JSON blobs consume them quickly:
+
+```swift
+struct Preferences: Codable, Sendable {
+  var fontSize = 14
+  var showsSidebar = true
+}
+
+@Shared(.iCloudKV("preferences")) var preferences = Preferences()
+```
+
+### Type-Safe Keys with Defaults
+
+Define a key once, together with its default, and use it with leading dot-syntax everywhere:
+
+```swift
+extension SharedKey where Self == iCloudKVKey<Bool>.Default {
+  static var isDarkModeEnabled: Self {
+    Self[.iCloudKV("isDarkModeEnabled"), default: false]
+  }
+}
+
+@Shared(.isDarkModeEnabled) var isDarkModeEnabled
+```
+
+### Testing and Previews
+
+In tests and previews the `defaultiCloudKVStore` dependency resolves to an in-memory store, so
+features that use `.iCloudKV` never talk to the real iCloud server and require no entitlements.
+You can also override the store explicitly — for example during UI tests:
+
+```swift
+import Dependencies
+
+@main
+struct MyApp: App {
+  init() {
+    if ProcessInfo.processInfo.environment["UITesting"] == "true" {
+      prepareDependencies {
+        $0.defaultiCloudKVStore = .inMemory
+      }
+    }
+  }
+  // ...
+}
+```
+
+Or pass an isolated store to a single key with `.iCloudKV("key", store: .inMemory)`.
 
 ### Other Shared Use Casess
 
