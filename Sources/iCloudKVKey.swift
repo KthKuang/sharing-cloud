@@ -833,11 +833,7 @@
     #elseif os(iOS) || os(tvOS) || os(visionOS)
       return UIApplication.willEnterForegroundNotification
     #elseif os(watchOS)
-      if #available(watchOS 7, *) {
-        return WKApplication.willEnterForegroundNotification
-      } else {
-        return nil
-      }
+      return WKApplication.willEnterForegroundNotification
     #else
       return nil
     #endif
