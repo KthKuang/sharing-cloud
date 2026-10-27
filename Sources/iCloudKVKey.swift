@@ -834,7 +834,7 @@
       return UIApplication.willEnterForegroundNotification
     #elseif os(watchOS)
       if #available(watchOS 7, *) {
-        return WKExtension.applicationWillEnterForegroundNotification
+        return WKApplication.willEnterForegroundNotification
       } else {
         return nil
       }
